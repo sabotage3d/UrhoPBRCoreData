@@ -270,7 +270,7 @@ void PS()
             #ifdef AO
                 finalColor.rgb = vVertexLight.rgb + (diffColor.rgb * cubeColor * aoFactor) + iblColor * aoFactor;
             #else
-                finalColor = vVertexLight.rgb + (diffColor.rgb * cubeColor) + iblColor;
+                finalColor.rgb = vVertexLight.rgb + (diffColor.rgb * cubeColor) + iblColor;
             #endif
         #endif
         #ifdef ENVCUBEMAP
