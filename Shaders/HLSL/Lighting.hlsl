@@ -335,9 +335,9 @@
         float SmithGGXVisibility(in float nDotL, in float nDotV, in float roughness)
         {
             float rough2 = roughness * roughness;
-            float viewFactor = nDotV + sqrt(nDotV * (nDotV - nDotV * rough2) + rough2);
-            float lightFactor = nDotL + sqrt(nDotL * (nDotL - nDotL * rough2) + rough2);
-            return 1.0 / (viewFactor * lightFactor);
+            float gSmithV = nDotV + sqrt(nDotV * (nDotV - nDotV * rough2) + rough2);
+            float gSmithL = nDotL + sqrt(nDotL * (nDotL - nDotL * rough2) + rough2);
+            return 1.0 / (gSmithV * gSmithL);
         }
         
         
@@ -425,7 +425,7 @@
                 // Mip selection is something to tune to your desired results
                 //const float mipSelect = 9;
                 //const float mipSelect = 7 - 1 + log2(roughness); // Geilfus: https://github.com/simongeilfus/Cinder-Experiments
-                const float mipSelect = roughness * 9;  // Lux-style
+                const float mipSelect = roughness * 8;  // Lux-style
                 
                 reflectionCubeColor.rgb = SampleCubeLOD(ZoneCubeMap, float4(reflectVec, mipSelect)).rgb;
                 const float3 environmentSpecular = EnvBRDFApprox(specular, roughness, ndv);

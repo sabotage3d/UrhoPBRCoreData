@@ -271,6 +271,19 @@
     #endif
     
     #ifdef PBR
+    
+        vec3 LinearToSRGB(vec3 c)
+        {
+            float power = 2.2;
+            return pow(c, vec3(power, power, power));
+        }
+
+        vec3 LinearFromSRGB(vec3 c)
+        {
+            float power = 1.0 / 2.2;
+            return pow(c, vec3(power, power, power));
+        }
+    
         /// Diffuse factors
 
         /// Oren-Nayar diffuse factor
@@ -329,8 +342,8 @@
         float SmithGGXVisibility(in float nDotL, in float nDotV, in float roughness)
         {
             float rough2 = roughness * roughness;
-            float gSmithV = nDotV + sqrt( nDotV * (nDotV - nDotV * rough2) + rough2);
-            float gSmithL = nDotL + sqrt( nDotL * (nDotL - nDotL * rough2) + rough2);
+            float gSmithV = nDotV + sqrt(nDotV * (nDotV - nDotV * rough2) + rough2);
+            float gSmithL = nDotL + sqrt(nDotL * (nDotL - nDotL * rough2) + rough2);
             return 1.0 / ( gSmithV * gSmithL );
         }
         
@@ -344,9 +357,9 @@
         ///     nDotL: dot product of surface normal and light direction
         ///     nDotV: dot product of surface normal and view direction
         ///     roughness: surface roughness
-        float SchlickVisibility(float nDotL, float nDotV, float Roughness)
+        float SchlickVisibility(float nDotL, float nDotV, float roughness)
         {
-            float rough2 = Roughness * Roughness;
+            float rough2 = roughness * roughness;
             return (SchlickG1(nDotL, rough2) * SchlickG1(nDotV, rough2)) * 0.25; // divided by four
         }
         
@@ -367,10 +380,10 @@
         /// Trowbridge-Reitz GGX normal distribution
         ///     nDotH: dot-prod of surface normal and half-angle
         ///     roughness: surface roughness
-        float GGXDistribution(in float ndh, in float roughness)
+        float GGXDistribution(in float nDotH, in float roughness)
         {
             float rough2 = roughness * roughness;
-            float tmp = roughness / max(1e-8,(ndh * ndh *(rough2 - 1.0) + 1.0));
+            float tmp = roughness / max(1e-8, nDotH * nDotH * (rough2 - 1.0) + 1.0);
             return tmp * tmp * 0.3141596;
         }
         
@@ -447,8 +460,8 @@
                 reflectVec = GetSpecularDominantDir(wsNormal, reflectVec, roughness * roughness);
                 
                 // Mip selection is something to tune to your desired results
-                float mipSelect = 7.0 - 1.0 + log2(roughness); // Geilfus: https://github.com/simongeilfus/Cinder-Experiments
-                //float mipSelect = roughness * 7.0;  // Lux-style
+                //float mipSelect = 7.0 - 1.0 + log2(roughness); // Geilfus: https://github.com/simongeilfus/Cinder-Experiments
+                float mipSelect = roughness * 8.0;  // Lux-style
                 
                 reflectionCubeColor.rgb = textureCube(sZoneCubeMap, reflectVec, mipSelect).rgb;
                 vec3 environmentSpecular = EnvBRDFApprox(specular, roughness, ndv);

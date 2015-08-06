@@ -125,15 +125,15 @@ void PS()
             vec3 specColor = specSample.rgb;
             float roughness = max(0.004, 1.0 - specSample.a);
             roughness = roughness * roughness;
-            // specColor *= cMatSpecColor.rgb; // mix in externally defined color
+            specColor *= cMatSpecColor.rgb; // mix in externally defined color
         #else
             vec4 roughMetalSrc = texture2D(sSpecMap, vTexCoord.xy);
             float roughness = max(0.004, roughMetalSrc.r);
             float metalness = roughMetalSrc.g;
 
-            vec3 specColor = diffColor.rgb * metalness;
-            // specColor *= cMatSpecColor.rgb;
-            diffColor.rgb = diffColor.rgb - specColor; // Modulate down the diffuse
+            vec3 specColor = max(diffColor.rgb * metalness, vec3(0.08, 0.08, 0.08));
+            specColor *= cMatSpecColor.rgb;
+            diffColor.rgb -= diffColor.rgb * metalness; // Modulate down the diffuse
         #endif
     #elif defined(SPECMAP)
         vec3 specColor = cMatSpecColor.rgb * texture2D(sSpecMap, vTexCoord.xy).rgb;
@@ -185,12 +185,14 @@ void PS()
             float ndl = clamp(dot(normal, lightDir), 0.0, 1.0);
             float ndv = clamp(dot(normal, -cameraDir), 0.0, 1.0) + 1e-5;
             
-            vec3 diffuseTerm = ndl * lightColor * diff * diffColor;
-            vec3 fresnelTerm = SchlickFresnel(specColor, vdh);
+            vec3 diffuseTerm = LambertianDiffuse(diffColor.rgb, roughness, ndv, ndl, vdh) * diff * lightColor.rgb;
+            vec3 fresnelTerm = SchlickGaussianFresnel(specColor, vdh);
             float distTerm = GGXDistribution(ndh, roughness);
             float visTerm = SmithGGXVisibility(ndl, ndv, roughness);
             
-            finalColor = (diffuseTerm) + (distTerm * visTerm * fresnelTerm) * lightColor * diff;
+            finalColor = diffuseTerm;
+            finalColor += distTerm * visTerm * fresnelTerm * lightColor * diff;
+            finalColor.rgb = LinearFromSRGB(finalColor.rgb);
         #else
             #ifdef SPECULAR
                 float spec = GetSpecular(normal, cCameraPosPS - vWorldPos.xyz, lightDir, cMatSpecColor.a);
@@ -268,9 +270,9 @@ void PS()
             vec3 cubeColor = vVertexLight.rgb;
             vec3 iblColor = ImageBasedLighting(reflection, normal, toCamera, specColor, roughness, cubeColor);
             #ifdef AO
-                finalColor.rgb = vVertexLight.rgb + (diffColor.rgb * cubeColor * aoFactor) + iblColor * aoFactor;
+                finalColor.rgb = LinearFromSRGB(vVertexLight.rgb * (diffColor.rgb * cubeColor * aoFactor) + iblColor * aoFactor);
             #else
-                finalColor.rgb = vVertexLight.rgb + (diffColor.rgb * cubeColor) + iblColor;
+                finalColor.rgb = LinearFromSRGB(vVertexLight.rgb * (diffColor.rgb * cubeColor) + iblColor);
             #endif
         #endif
         #ifdef ENVCUBEMAP

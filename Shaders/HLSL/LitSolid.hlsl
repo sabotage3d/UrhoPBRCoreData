@@ -278,6 +278,7 @@ void PS(
             
             finalColor = float4(diffuseTerm, 1);
             finalColor += distTerm * visTerm * fresnelTerm * lightColor * diff;
+            finalColor.rgb = LinearFromSRGB(finalColor.rgb);
         #else
             #ifdef SPECULAR
                 float spec = GetSpecular(normal, cCameraPosPS - iWorldPos.xyz, lightDir, cMatSpecColor.a);
@@ -358,7 +359,7 @@ void PS(
         // Ambient & per-vertex lighting
         float3 finalColor = iVertexLight * diffColor.rgb;
         #ifdef AO
-            #ifdef PBR
+            #if defined(PBR) && defined(IBL)
                 float aoFactor = Sample2D(EmissiveMap, iTexCoord).r;
             #else
                 // If using AO, the vertex light ambient is black, calculate occluded ambient here
@@ -382,9 +383,9 @@ void PS(
             float3 cubeColor = iVertexLight.rgb;
             float3 iblColor = ImageBasedLighting(reflection, normal, toCamera, specColor, roughness, cubeColor);
             #ifdef AO
-                finalColor = iVertexLight * ((cubeColor * diffColor * aoFactor) + iblColor * aoFactor);
+                finalColor = LinearFromSRGB(iVertexLight * ((cubeColor * diffColor * aoFactor) + iblColor * aoFactor));
             #else                         
-                finalColor = iVertexLight * ((cubeColor * diffColor) + iblColor);
+                finalColor = LinearFromSRGB(iVertexLight * ((cubeColor * diffColor) + iblColor));
             #endif
         #endif
         #ifdef ENVCUBEMAP
