@@ -4,7 +4,7 @@ PBR based shaders and some example techniques for Urho3D
 
 ### For All Workflows
 
-Use the **IBL** preprocessor definition for image based lighting.
+The **PBR** preprocessor definition is required. Use the **IBL** preprocessor definition for image based lighting.
 Use the **AO** preprocessor definition if including an ambient occlusion map
 
 ### Specular Glossines or Specular Roughness workflows
