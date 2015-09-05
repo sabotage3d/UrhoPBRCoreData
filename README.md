@@ -2,12 +2,12 @@
 
 PBR based shaders and some example techniques for Urho3D
 
-# For All Workflows
+### For All Workflows
 
 Use the **IBL** preprocessor definition for image based lighting.
 Use the **AO** preprocessor definition if including an ambient occlusion map
 
-# Specular Glossines or Specular Roughness workflows
+### Specular Glossines or Specular Roughness workflows
 
 For specular glossiness
 
@@ -17,7 +17,7 @@ For glossiness, use specular texture's Alpha channel to define glossiness (0 rou
 
 Use **ROUGHNESS** preprocessor definition to use the specular texture's Alpha channel to define roughness (0 smooth, 1 rough).
 
-# Rough Metal or Glossy Metal workflows
+### Rough Metal or Glossy Metal workflows
 
 Metalness is defined int he specular texture's G channel.
 
@@ -27,12 +27,14 @@ To use the R channel
 
 ---
 
-# Standard Specular Glossiness Example
+### Standard Specular Glossiness Example
 
 Shader preprocess defines: PBR SPECMAP IBL AO
+
 Specular texture: RGB = color, A = glossiness
 
-# Standard Roughness Metalness Example
+### Standard Roughness Metalness Example
 
 Shader preprocessor defines: PBR ROUGHNESS IBL AO
+
 Specular texture: R = roughness, G = metallness
