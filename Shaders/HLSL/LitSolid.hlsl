@@ -285,11 +285,11 @@ void PS(
                 const float ndh = saturate(dot(normal, Hn));
                 const float ndv = saturate(dot(normal, cameraDir));
                 
-                const float3 fresnelTerm = SchlickFresnel(specColor, vdh, roughness);
+                const float3 fresnelTerm = SchlickFresnel(specColor, vdh);
                 const float distTerm = GGXDistribution(ndh, roughness);
-                const float visTerm = SmithGGXVisibility(ndl, ndv, roughness);
+                const float visTerm = SchlickVisibility(ndl, ndv, roughness);
                 
-                finalColor += distTerm * visTerm * fresnelTerm * lightColor * diff;
+                finalColor = (diffuseTerm + distTerm * visTerm * fresnelTerm * lightColor) * diff;
                 finalColor.rgb = LinearFromSRGB(finalColor.rgb);
             }
         #else
@@ -333,14 +333,18 @@ void PS(
         #endif
         
         #if defined(PBR) || defined(IBL)
-            const float3 toCamera = normalize(cCameraPosPS - iWorldPos.xyz);
+            const float3 toCamera = normalize(iWorldPos.xyz - cCameraPosPS);
         #endif
         
         #ifdef IBL
-            const float3 reflection = normalize(reflect(-toCamera, normal));
+            const float3 reflection = normalize(reflect(toCamera, normal));
             float3 cubeColor = iVertexLight.rgb;
-            float3 iblColor = ImageBasedLighting(reflection, normal, -toCamera, specColor, roughness, cubeColor);
-            float3 iblNeg = 1.0 - iblColor;
+            float3 iblColor = ImageBasedLighting(reflection, normal, toCamera, specColor, roughness, cubeColor);
+            
+            float horizonOcclusion = 1.3;
+            float horizon = saturate(1 + horizonOcclusion * dot(reflection, normal));
+            horizon *= horizon;
+            
             #ifdef AO
                 finalColor += LinearFromSRGB(iblColor * aoFactor * horizon * cubeColor);
             #else                            
