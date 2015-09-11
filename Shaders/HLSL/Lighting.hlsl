@@ -415,6 +415,94 @@
                 const float smoothness = 1.0 - roughness; 
                 const float lerpFactor = smoothness * (sqrt(smoothness) + roughness); 
                 return lerp(normal, reflection, lerpFactor);
+            }            
+            
+            #ifdef IMPORTANCESAMPLE_HQ
+                #define IMPORTANCE_SAMPLES 16
+                static const float2 IMPORTANCE_KERNEL[IMPORTANCE_SAMPLES] =
+                {
+                    float2(-0.0780436, 0.0558389),
+                    float2(0.034318, -0.0635879),
+                    float2(0.00230821, 0.0807279),
+                    float2(0.0124638, 0.117585),
+                    float2(0.093943, -0.0944602),
+                    float2(0.139348, -0.109816),
+                    float2(-0.181872, -0.129649),
+                    float2(0.240066, -0.0494057),
+                    float2(0.115965, -0.0374714),
+                    float2(-0.294819, -0.100726),
+                    float2(-0.149652, 0.37459),
+                    float2(0.261695, -0.292813),
+                    float2(-0.37944, -0.425145),
+                    float2(0.628994, -0.189387),
+                    float2(-0.331257, -0.646864),
+                    float2(-0.467004, 0.439687),
+                };
+            #else
+                #define IMPORTANCE_SAMPLES 8
+                static const float2 IMPORTANCE_KERNEL[IMPORTANCE_SAMPLES] =
+                {
+                    float2(0.034318, -0.0635879),
+                    float2(0.00230821, 0.0807279),
+                    float2(0.093943, -0.0944602),
+                    float2(-0.181872, -0.129649),
+                    float2(-0.294819, -0.100726),
+                    float2(-0.149652, 0.37459),
+                    float2(0.628994, -0.189387),
+                    float2(-0.331257, -0.646864),
+                };
+            #endif
+            
+            // Karis '13
+            float3 ImportanceSampleGGX(float2 Xi, float Roughness, float3 N) 
+            { 
+                float a = Roughness * Roughness;
+                float Phi = 2 * 3.141596 * Xi.x; 
+                float CosTheta = sqrt((1.0 - Xi.y) / ( 1 + (a*a - 1) * Xi.y ) ); 
+                float SinTheta = sqrt(1.0 - CosTheta * CosTheta );
+                
+                float3 H; 
+                H.x = SinTheta * cos( Phi ); 
+                H.y = SinTheta * sin( Phi ); 
+                H.z = CosTheta;
+                
+                float3 UpVector = abs(N.z) < 0.999 ? float3(0,0,1) : float3(1,0,0); 
+                float3 TangentX = normalize(cross(UpVector, N)); 
+                float3 TangentY = cross(N, TangentX);
+                return TangentX * H.x + TangentY * H.y + N * H.z;
+            }
+            
+            /// Perform importance sampling
+            ///     reflectVec: calculated vector of reflection
+            ///     wsNormal: world-space normal of the surface
+            ///     toCamera: direction from the pixel to the camera
+            ///     specular: specular color
+            ///     roughness: surface roughness
+            ///     reflectionCubeColor: output color for diffuse
+            float3 ImportanceSampling(in float3 reflectVec, in float3 wsNormal, in float3 toCamera, in float3 specular, in float roughness, out float3 reflectionCubeColor)
+            {
+                reflectionCubeColor = float3(1,1,1);
+                reflectVec = normalize(GetSpecularDominantDir(wsNormal, reflectVec, roughness));
+                
+                const float3 Hn = normalize(-toCamera + wsNormal);
+                const float ndv = saturate(dot(-toCamera, wsNormal));
+                const float vdh = saturate(dot(-toCamera, Hn));
+                const float ndh = saturate(dot(wsNormal, Hn));
+                
+                const float mipSelect = roughness * 9;  // Lux-style
+                float3 accumulatedColor = float3(0,0,0);
+                for (int i = 0; i < IMPORTANCE_SAMPLES; ++i)
+                {
+                    float3 perturb = ImportanceSampleGGX(IMPORTANCE_KERNEL[i].xy, roughness, reflectVec);
+                    float3 sampleVec = reflectVec + perturb; //perturb by the sample vector
+                    
+                    float ndl = saturate(dot(sampleVec, wsNormal));
+                    
+                    float3 sampledColor = SampleCubeLOD(ZoneCubeMap, float4(sampleVec, 0));
+                    accumulatedColor += (sampledColor * SchlickFresnel(specular, ndh) * SmithGGXVisibility(ndl, ndv, roughness) * ndl);
+                }
+                
+                return accumulatedColor / IMPORTANCE_SAMPLES;
             }
             
             /// Calculate IBL contributation
@@ -424,22 +512,26 @@
             ///     roughness: surface roughness
             ///     reflectionCubeColor: output of the sampled cubemap color
             float3 ImageBasedLighting(in float3 reflectVec, in float3 wsNormal, in float3 toCamera, in float3 specular, in float roughness, out float3 reflectionCubeColor)
-            {     
-                reflectVec = GetSpecularDominantDir(wsNormal, reflectVec, roughness);
-                const float3 Hn = normalize(-toCamera + wsNormal);
-                const float vdh = saturate(dot(-toCamera, Hn));
-                const float ndv = saturate(dot(-toCamera, wsNormal));
-                
-                // Mip selection is something to tune to your desired results
-                //const float mipSelect = 9;
-                const float mipSelect = roughness * 9;  // Lux-style
-                //const float mipSelect = 9 + 1 - (4 - log2(roughness));
-                
-                float3 cube = SampleCubeLOD(ZoneCubeMap, float4(reflectVec, mipSelect)).rgb;
-                reflectionCubeColor = SampleCubeLOD(ZoneCubeMap, float4(wsNormal, 9)).rgb;
-      
-                const float3 environmentSpecular = EnvBRDFApprox(specular, roughness, ndv);
-                return environmentSpecular * cube;
+            {
+                #if defined(IMPORTANCESAMPLE_HQ) || defined(IMPORTANCESAMPLE)
+                    ImportanceSampling(reflectVec, wsNormal, toCamera, specular, roughness, reflectionCubeColor);
+                #else
+                    reflectVec = GetSpecularDominantDir(wsNormal, reflectVec, roughness);
+                    const float3 Hn = normalize(-toCamera + wsNormal);
+                    const float vdh = saturate(dot(-toCamera, Hn));
+                    const float ndv = saturate(dot(-toCamera, wsNormal));
+                    
+                    // Mip selection is something to tune to your desired results
+                    //const float mipSelect = 9;
+                    const float mipSelect = roughness * 9;  // Lux-style
+                    //const float mipSelect = 9 + 1 - (4 - log2(roughness));
+                    
+                    float3 cube = SampleCubeLOD(ZoneCubeMap, float4(reflectVec, mipSelect)).rgb;
+                    reflectionCubeColor = SampleCubeLOD(ZoneCubeMap, float4(wsNormal, 9)).rgb;
+          
+                    const float3 environmentSpecular = EnvBRDFApprox(specular, roughness, ndv);
+                    return environmentSpecular * cube;
+                #endif
             }
 
         #endif

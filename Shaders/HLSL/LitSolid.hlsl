@@ -208,20 +208,20 @@ void PS(
         #ifdef SPECMAP // SPECULAR
             float4 specSample = Sample2D(SpecGlossMap, iTexCoord.xy);
             float3 specColor = specSample.rgb;
-            #ifdef GLOSSINESS
+            #ifdef ROUGHNESS
+                float roughness = max(0.04, specSample.a);
+            #else
                 float roughness = max(0.04, 1.0 - specSample.a);
                 roughness *= roughness;
-            #else
-                float roughness = max(0.04, specSample.a);
             #endif
             specColor *= cMatSpecColor.rgb; // mix in externally defined color
         #else // METALNESS
             float4 roughMetalSrc = Sample2D(RoughMetalFresnel, iTexCoord.xy);
-            #ifdef GLOSSINESS
+            #ifdef ROUGHNESS
+                float roughness = max(0.04, roughMetalSrc.r);
+            #else
                 float roughness = max(0.04, 1.0 - roughMetalSrc.r);
                 roughness *= roughness;
-            #else
-                float roughness = max(0.04, roughMetalSrc.r);
             #endif
             
             const float metalness = roughMetalSrc.g;
