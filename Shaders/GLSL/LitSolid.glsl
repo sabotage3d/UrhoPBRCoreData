@@ -145,6 +145,11 @@ void PS()
             specColor *= cMatSpecColor.rgb;
             diffColor.rgb = diffColor.rgb - diffColor.rgb * metalness; // Modulate down the diffuse
         #endif
+        
+        // Apply user configurable roughness control
+        roughness *= cRoughnessControl.y > 0 ? cRoughnessControl.y : 1.0;
+        roughness += cRoughnessControl.x;
+        
     #elif defined(SPECMAP)
         vec3 specColor = cMatSpecColor.rgb * texture2D(sSpecMap, vTexCoord.xy).rgb;
     #else

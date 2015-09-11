@@ -213,7 +213,7 @@ void PS(
             #else
                 float roughness = max(0.04, 1.0 - specSample.a);
                 roughness *= roughness;
-            #endif
+            #endif            
             specColor *= cMatSpecColor.rgb; // mix in externally defined color
         #else // METALNESS
             float4 roughMetalSrc = Sample2D(RoughMetalFresnel, iTexCoord.xy);
@@ -229,6 +229,11 @@ void PS(
             specColor *= cMatSpecColor.rgb;
             diffColor.rgb = diffColor.rgb - diffColor.rgb * metalness; // Modulate down the diffuse
         #endif
+        
+        // Apply user configurable roughness control
+        roughness *= cRoughnessControl.y > 0 ? cRoughnessControl.y : 1.0;
+        roughness += cRoughnessControl.x;
+        
     // Get material specular albedo
     #elif defined(SPECMAP)
         float3 specColor = cMatSpecColor.rgb * Sample2D(SpecMap, iTexCoord.xy).rgb;
