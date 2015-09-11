@@ -127,9 +127,6 @@ uniform MaterialVS
 {
     vec4 cUOffset;
     vec4 cVOffset;
-    #ifdef PBR
-        vec2 cRoughnessControl; //x = add, y = multiply if > 0
-    #endif
 };
 #endif
 
@@ -191,6 +188,9 @@ uniform MaterialPS
     vec3 cMatEmissiveColor;
     vec3 cMatEnvMapColor;
     vec4 cMatSpecColor;
+    #ifdef PBR
+        vec2 cRoughnessControl;
+    #endif
 };
 #endif
 
